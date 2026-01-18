@@ -1,20 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Press_Start_2P } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const pressStart = Press_Start_2P({
+  weight: "400",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: "--font-press-start",
 });
 
 export const metadata: Metadata = {
-  title: "Solana Snake - Watch Your Tokens Come Alive",
-  description: "A fun snake game where your Solana wallet tokens become snakes that grow and shrink based on real-time price movements.",
+  title: "SOLANA SNAKE - Retro Crypto Game",
+  description: "A retro snake game where your Solana wallet tokens become snakes that grow and shrink based on real-time price movements.",
 };
 
 export default function RootLayout({
@@ -24,9 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-950`}
-      >
+      <body className={`${pressStart.variable} bg-black`}>
         {children}
       </body>
     </html>

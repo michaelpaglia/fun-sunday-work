@@ -15,9 +15,9 @@ export default function Leaderboard({ snakes, selectedSnakeId, onSelectSnake }: 
   );
 
   return (
-    <div className="bg-zinc-900/80 backdrop-blur-sm rounded-xl p-4 w-64 max-h-[400px] overflow-y-auto">
-      <h3 className="text-white font-bold text-lg mb-3 flex items-center gap-2">
-        <span className="text-2xl">🏆</span> Leaderboard
+    <div className="bg-black border-2 border-green-500 rounded p-4 w-64 max-h-[400px] overflow-y-auto">
+      <h3 className="text-green-500 font-mono font-bold text-lg mb-3">
+        LEADERBOARD
       </h3>
 
       <div className="space-y-2">
@@ -30,31 +30,27 @@ export default function Leaderboard({ snakes, selectedSnakeId, onSelectSnake }: 
             <button
               key={snake.id}
               onClick={() => onSelectSnake(snake.id)}
-              className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all
+              className={`w-full flex items-center gap-3 p-2 rounded transition-all font-mono text-sm
                 ${isSelected
-                  ? 'bg-green-500/20 border border-green-500'
-                  : 'bg-zinc-800/50 hover:bg-zinc-700/50 border border-transparent'
+                  ? 'bg-green-500 text-black'
+                  : 'bg-black border border-green-700 hover:border-green-500 text-green-500'
                 }`}
             >
-              <span className="text-zinc-500 font-mono w-6">#{index + 1}</span>
+              <span className={`font-bold w-6 ${isSelected ? 'text-black' : 'text-green-700'}`}>
+                {index + 1}.
+              </span>
 
               <div
-                className="w-4 h-4 rounded-full flex-shrink-0"
+                className="w-3 h-3 flex-shrink-0"
                 style={{ backgroundColor: snake.color }}
               />
 
-              <div className="flex-1 text-left">
-                <p className="text-white text-sm font-medium truncate">
-                  {snake.token.symbol}
-                </p>
+              <div className="flex-1 text-left truncate">
+                {snake.token.symbol}
               </div>
 
-              <span
-                className={`text-sm font-mono ${
-                  isUp ? 'text-green-400' : 'text-red-400'
-                }`}
-              >
-                {isUp ? '+' : ''}{priceChange.toFixed(2)}%
+              <span className={isSelected ? 'text-black font-bold' : isUp ? 'text-green-400' : 'text-red-500'}>
+                {isUp ? '+' : ''}{priceChange.toFixed(1)}%
               </span>
             </button>
           );
@@ -62,7 +58,7 @@ export default function Leaderboard({ snakes, selectedSnakeId, onSelectSnake }: 
       </div>
 
       {snakes.length === 0 && (
-        <p className="text-zinc-500 text-sm text-center py-4">No snakes yet...</p>
+        <p className="text-green-700 text-sm text-center py-4 font-mono">NO SNAKES...</p>
       )}
     </div>
   );

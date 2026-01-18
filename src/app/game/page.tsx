@@ -3,14 +3,13 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import GameCanvas from '@/components/GameCanvas';
-import Leaderboard from '@/components/Leaderboard';
-import { Token, TokenWithPrice, GameState, Direction } from '@/types';
-import { initializeGame, gameLoop, changeDirection, updateSnakeSize } from '@/lib/gameEngine';
+import GlobalLeaderboard from '@/components/GlobalLeaderboard';
+import { Token, TokenWithPrice, GameState, Direction, Snake } from '@/types';
+import { initializeGame, gameLoop, changeDirection, updateSnakeSize, spawnFood } from '@/lib/gameEngine';
 
 const CANVAS_WIDTH = 900;
-const CANVAS_HEIGHT = 600;
-const GAME_TICK_MS = 16; // ~60fps
-const PRICE_UPDATE_MS = 5000; // Update prices every 5 seconds
+const CANVAS_HEIGHT = 550;
+const PRICE_UPDATE_MS = 5000;
 
 function GameContent() {
   const searchParams = useSearchParams();
@@ -21,6 +20,8 @@ function GameContent() {
   const [error, setError] = useState('');
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [tokens, setTokens] = useState<TokenWithPrice[]>([]);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showGlobalLeaderboard, setShowGlobalLeaderboard] = useState(false);
 
   const startPricesRef = useRef<Record<string, number>>({});
   const gameLoopRef = useRef<number | null>(null);
@@ -48,18 +49,17 @@ function GameContent() {
           return;
         }
 
-        // Fetch initial prices
         const mints = data.tokens.map((t: Token) => t.mint).join(',');
         const priceResponse = await fetch(`/api/prices?mints=${mints}`);
         const priceData = await priceResponse.json();
+        const prices = priceData.prices || {};
 
-        // Combine tokens with prices
         const tokensWithPrice: TokenWithPrice[] = data.tokens
-          .filter((token: Token) => priceData.prices[token.mint])
+          .filter((token: Token) => prices[token.mint])
           .map((token: Token) => ({
             ...token,
-            price: priceData.prices[token.mint] || 0,
-            priceAtStart: priceData.prices[token.mint] || 0,
+            price: prices[token.mint] || 0,
+            priceAtStart: prices[token.mint] || 0,
             priceChange: 0,
           }));
 
@@ -68,15 +68,12 @@ function GameContent() {
           return;
         }
 
-        // Store starting prices
         startPricesRef.current = {};
         tokensWithPrice.forEach((t) => {
           startPricesRef.current[t.mint] = t.price;
         });
 
         setTokens(tokensWithPrice);
-
-        // Initialize game
         const initialState = initializeGame(tokensWithPrice, CANVAS_WIDTH, CANVAS_HEIGHT);
         setGameState(initialState);
         setLoading(false);
@@ -148,7 +145,6 @@ function GameContent() {
     };
   }, [tokens]);
 
-  // Handle direction change
   const handleDirectionChange = useCallback((direction: Direction) => {
     setGameState((prev) => {
       if (!prev || !prev.selectedSnakeId) return prev;
@@ -164,7 +160,6 @@ function GameContent() {
     });
   }, []);
 
-  // Handle snake selection
   const handleSelectSnake = useCallback((id: string) => {
     setGameState((prev) => {
       if (!prev) return prev;
@@ -178,13 +173,93 @@ function GameContent() {
     });
   }, []);
 
+  const handleEatFood = useCallback((foodIndex: number) => {
+    setGameState((prev) => {
+      if (!prev) return prev;
+
+      const eatenFood = prev.food[foodIndex];
+      if (!eatenFood) return prev;
+
+      const newFood = [...prev.food];
+      newFood.splice(foodIndex, 1);
+      newFood.push(...spawnFood(prev.canvasWidth, prev.canvasHeight, 1));
+
+      const updatedSnakes = prev.snakes.map((snake) => {
+        if (snake.id === prev.selectedSnakeId) {
+          const newSegments = [...snake.segments];
+          for (let i = 0; i < 2; i++) {
+            const lastSeg = newSegments[newSegments.length - 1];
+            newSegments.push({ x: lastSeg.x, y: lastSeg.y });
+          }
+          return {
+            ...snake,
+            segments: newSegments,
+            bonusSize: snake.bonusSize + 3, // Permanent growth
+            currentSize: snake.currentSize + 3,
+          };
+        }
+        return snake;
+      });
+
+      return {
+        ...prev,
+        food: newFood,
+        snakes: updatedSnakes,
+        score: prev.score + eatenFood.value,
+      };
+    });
+  }, []);
+
+  const handleEatSnake = useCallback((eatenSnakeId: string) => {
+    setGameState((prev) => {
+      if (!prev) return prev;
+
+      const eatenSnake = prev.snakes.find(s => s.id === eatenSnakeId);
+      if (!eatenSnake) return prev;
+
+      const remainingSnakes = prev.snakes.filter(s => s.id !== eatenSnakeId);
+
+      const updatedSnakes = remainingSnakes.map((snake) => {
+        if (snake.id === prev.selectedSnakeId) {
+          const newSegments = [...snake.segments];
+          for (let i = 0; i < Math.min(5, eatenSnake.segments.length); i++) {
+            newSegments.push({ ...snake.segments[snake.segments.length - 1] });
+          }
+          const sizeGain = Math.floor(eatenSnake.currentSize / 2);
+          return {
+            ...snake,
+            segments: newSegments,
+            bonusSize: snake.bonusSize + sizeGain, // Permanent growth
+            currentSize: snake.currentSize + sizeGain,
+          };
+        }
+        return snake;
+      });
+
+      const bonusScore = Math.floor(eatenSnake.currentSize * 10);
+
+      return {
+        ...prev,
+        snakes: updatedSnakes,
+        score: prev.score + bonusScore,
+      };
+    });
+  }, []);
+
+  // Sort snakes by performance
+  const sortedSnakes = gameState ? [...gameState.snakes].sort(
+    (a, b) => b.token.priceChange - a.token.priceChange
+  ) : [];
+
+  // Get the currently selected/player snake
+  const playerSnake = gameState?.snakes.find(s => s.id === gameState.selectedSnakeId);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="animate-spin w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full mx-auto" />
-          <p className="text-zinc-400 text-lg">Loading your tokens...</p>
-          <p className="text-zinc-600 text-sm">Summoning snakes from the blockchain</p>
+          <div className="text-6xl animate-pulse">🐍</div>
+          <p className="text-green-500 text-lg font-mono">LOADING...</p>
         </div>
       </div>
     );
@@ -192,16 +267,16 @@ function GameContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center space-y-4 max-w-md">
           <div className="text-6xl">💀</div>
-          <h2 className="text-2xl font-bold text-white">Oops!</h2>
-          <p className="text-red-400">{error}</p>
+          <h2 className="text-2xl font-bold text-red-500 font-mono">GAME OVER</h2>
+          <p className="text-red-400 font-mono">{error}</p>
           <button
             onClick={() => router.push('/')}
-            className="px-6 py-3 bg-zinc-800 text-white rounded-xl hover:bg-zinc-700 transition-colors"
+            className="px-6 py-3 bg-green-600 text-black font-bold rounded hover:bg-green-500 transition-colors font-mono"
           >
-            Try Again
+            TRY AGAIN
           </button>
         </div>
       </div>
@@ -211,57 +286,78 @@ function GameContent() {
   if (!gameState) return null;
 
   return (
-    <div className="min-h-screen bg-zinc-950 p-4 md:p-8">
-      {/* Header */}
-      <header className="max-w-6xl mx-auto mb-6 flex items-center justify-between">
+    <div className="min-h-screen bg-black p-4 flex flex-col items-center">
+      {/* Header with controls */}
+      <header className="w-full max-w-[900px] mb-3 flex items-center justify-between">
         <button
           onClick={() => router.push('/')}
-          className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2"
+          className="text-green-600 hover:text-green-400 transition-colors font-mono text-xs"
         >
-          <span>←</span> Back
+          ← EXIT
         </button>
-        <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500">
-          Solana Snake
-        </h1>
-        <p className="text-zinc-500 text-sm font-mono">
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowLeaderboard(!showLeaderboard)}
+            className="px-2 py-1 text-green-600 font-mono text-xs hover:text-green-400 transition-colors"
+          >
+            [{showLeaderboard ? 'HIDE' : 'SNAKES'}]
+          </button>
+          <button
+            onClick={() => setShowGlobalLeaderboard(true)}
+            className="px-2 py-1 text-yellow-600 font-mono text-xs hover:text-yellow-400 transition-colors"
+          >
+            [LEADERBOARD]
+          </button>
+        </div>
+
+        <span className="text-green-800 text-xs font-mono">
           {wallet?.slice(0, 4)}...{wallet?.slice(-4)}
-        </p>
+        </span>
       </header>
 
-      {/* Game Area */}
-      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 items-start justify-center">
-        {/* Canvas */}
-        <div className="flex-shrink-0">
-          <GameCanvas
-            gameState={gameState}
-            onDirectionChange={handleDirectionChange}
-          />
-          <p className="text-zinc-500 text-sm text-center mt-4">
-            Use <kbd className="px-2 py-1 bg-zinc-800 rounded text-xs">Arrow Keys</kbd> or
-            <kbd className="px-2 py-1 bg-zinc-800 rounded text-xs ml-1">WASD</kbd> to control your snake
-          </p>
+      {/* Snake selector (expandable) */}
+      {showLeaderboard && (
+        <div className="w-full max-w-[900px] mb-2 flex flex-wrap gap-1 justify-center">
+          {sortedSnakes.slice(0, 10).map((snake: Snake) => (
+            <button
+              key={snake.id}
+              onClick={() => handleSelectSnake(snake.id)}
+              className={`px-2 py-1 rounded font-mono text-xs transition-all ${
+                snake.id === gameState.selectedSnakeId
+                  ? 'bg-green-500 text-black'
+                  : 'text-green-600 hover:text-green-400'
+              }`}
+            >
+              {snake.token.symbol}
+            </button>
+          ))}
         </div>
+      )}
 
-        {/* Sidebar */}
-        <div className="w-full lg:w-auto">
-          <Leaderboard
-            snakes={gameState.snakes}
-            selectedSnakeId={gameState.selectedSnakeId}
-            onSelectSnake={handleSelectSnake}
-          />
+      {/* Game Canvas */}
+      <GameCanvas
+        gameState={gameState}
+        onDirectionChange={handleDirectionChange}
+        onEatFood={handleEatFood}
+        onEatSnake={handleEatSnake}
+      />
 
-          {/* Info Card */}
-          <div className="mt-4 bg-zinc-900/80 rounded-xl p-4 w-64">
-            <h4 className="text-white font-semibold mb-2">How it works</h4>
-            <ul className="text-zinc-400 text-sm space-y-1">
-              <li>📈 Price up = snake grows</li>
-              <li>📉 Price down = snake shrinks</li>
-              <li>🎯 Click to control a snake</li>
-              <li>🔄 Prices update every 5s</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+      {/* Minimal footer */}
+      <p className="text-green-900 text-[10px] font-mono mt-2">
+        [ARROWS] MOVE • EAT FOOD • EAT SMALLER SNAKES
+      </p>
+
+      {/* Global Leaderboard Modal */}
+      {showGlobalLeaderboard && (
+        <GlobalLeaderboard
+          onClose={() => setShowGlobalLeaderboard(false)}
+          currentScore={gameState.score}
+          walletAddress={wallet || undefined}
+          snakeCount={gameState.snakes.length}
+          topSnake={playerSnake?.token.symbol || 'SOL'}
+        />
+      )}
     </div>
   );
 }
@@ -269,8 +365,8 @@ function GameContent() {
 export default function GamePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="animate-spin w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full" />
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-6xl animate-pulse">🐍</div>
       </div>
     }>
       <GameContent />
