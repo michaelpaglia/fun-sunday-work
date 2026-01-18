@@ -1,4 +1,4 @@
-import { Snake, Point, Direction, TokenWithPrice, GameState } from '@/types';
+import { Snake, Point, Direction, TokenWithPrice, GameState, Food } from '@/types';
 
 // Color palette for snakes
 const SNAKE_COLORS = [
@@ -53,33 +53,22 @@ export function createSnake(
     speed: BASE_SPEED,
     baseSize: BASE_SNAKE_SIZE,
     currentSize: BASE_SNAKE_SIZE,
+    bonusSize: 0,
     color: SNAKE_COLORS[index % SNAKE_COLORS.length],
     isPlayer,
   };
 }
 
 export function updateSnakeSize(snake: Snake, priceChange: number): Snake {
-  // Size scales with price change: +10% = +5 size, -10% = -5 size
-  const sizeMultiplier = 0.5;
-  const newSize = BASE_SNAKE_SIZE + priceChange * sizeMultiplier;
+  // Size = base + price effect + bonus from eating
+  // Price effect: +10% price = +3 size, -10% = -3 size
+  const priceEffect = priceChange * 0.3;
+  const newSize = BASE_SNAKE_SIZE + priceEffect + snake.bonusSize;
   const clampedSize = Math.max(MIN_SNAKE_SIZE, Math.min(MAX_SNAKE_SIZE, newSize));
-
-  // Add/remove segments based on size
-  const targetSegments = Math.max(3, Math.floor(clampedSize / 3));
-  const segments = [...snake.segments];
-
-  while (segments.length < targetSegments) {
-    const lastSegment = segments[segments.length - 1];
-    segments.push({ ...lastSegment });
-  }
-  while (segments.length > targetSegments) {
-    segments.pop();
-  }
 
   return {
     ...snake,
     currentSize: clampedSize,
-    segments,
     token: {
       ...snake.token,
       priceChange,
@@ -181,6 +170,18 @@ export function changeDirection(snake: Snake, newDirection: Direction): Snake {
   return { ...snake, direction: newDirection };
 }
 
+export function spawnFood(canvasWidth: number, canvasHeight: number, count: number = 1): Food[] {
+  const food: Food[] = [];
+  for (let i = 0; i < count; i++) {
+    food.push({
+      x: Math.random() * (canvasWidth - 100) + 50,
+      y: Math.random() * (canvasHeight - 100) + 50,
+      value: Math.floor(Math.random() * 50) + 10,
+    });
+  }
+  return food;
+}
+
 export function initializeGame(
   tokens: TokenWithPrice[],
   canvasWidth: number,
@@ -192,10 +193,12 @@ export function initializeGame(
 
   return {
     snakes,
+    food: spawnFood(canvasWidth, canvasHeight, 5),
     canvasWidth,
     canvasHeight,
     isRunning: true,
     selectedSnakeId: snakes.length > 0 ? snakes[0].id : null,
+    score: 0,
   };
 }
 

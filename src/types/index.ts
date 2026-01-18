@@ -31,6 +31,7 @@ export interface Snake {
   speed: number;
   baseSize: number;
   currentSize: number;
+  bonusSize: number; // Growth from eating food/snakes
   color: string;
   isPlayer: boolean;
   targetDirection?: Direction;
@@ -43,13 +44,22 @@ export interface Point {
 
 export type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 
+// Food pellet
+export interface Food {
+  x: number;
+  y: number;
+  value: number;
+}
+
 // Game state
 export interface GameState {
   snakes: Snake[];
+  food: Food[];
   canvasWidth: number;
   canvasHeight: number;
   isRunning: boolean;
   selectedSnakeId: string | null;
+  score: number;
 }
 
 // API responses
