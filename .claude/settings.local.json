@@ -3,7 +3,14 @@
     "allow": [
       "Bash(npx create-next-app:*)",
       "Bash(npm run build:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: Solana Snake Game - watch your tokens come alive\n\nA fun snake game where wallet tokens become snakes that grow/shrink\nbased on real-time price movements. Features:\n- Multi-snake arena with all wallet tokens\n- Real-time price updates from Jupiter API\n- Playable controls \\(arrow keys/WASD\\)\n- Leaderboard showing token performance\n- Built with Next.js 14, TypeScript, and Tailwind CSS\nEOF\n\\)\")",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(curl:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

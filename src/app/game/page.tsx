@@ -291,27 +291,27 @@ function GameContent() {
       <header className="w-full max-w-[900px] mb-3 flex items-center justify-between">
         <button
           onClick={() => router.push('/')}
-          className="text-green-600 hover:text-green-400 transition-colors font-mono text-xs"
+          className="text-green-600 hover:text-green-400 transition-colors font-arcade text-[8px]"
         >
-          ← EXIT
+          EXIT
         </button>
 
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowLeaderboard(!showLeaderboard)}
-            className="px-2 py-1 text-green-600 font-mono text-xs hover:text-green-400 transition-colors"
+            className="px-2 py-1 text-green-600 font-arcade text-[8px] hover:text-green-400 transition-colors"
           >
             [{showLeaderboard ? 'HIDE' : 'SNAKES'}]
           </button>
           <button
             onClick={() => setShowGlobalLeaderboard(true)}
-            className="px-2 py-1 text-yellow-600 font-mono text-xs hover:text-yellow-400 transition-colors"
+            className="px-2 py-1 text-yellow-600 font-arcade text-[8px] hover:text-yellow-400 transition-colors"
           >
             [LEADERBOARD]
           </button>
         </div>
 
-        <span className="text-green-800 text-xs font-mono">
+        <span className="text-green-800 text-[8px] font-arcade">
           {wallet?.slice(0, 4)}...{wallet?.slice(-4)}
         </span>
       </header>
@@ -323,7 +323,7 @@ function GameContent() {
             <button
               key={snake.id}
               onClick={() => handleSelectSnake(snake.id)}
-              className={`px-2 py-1 rounded font-mono text-xs transition-all ${
+              className={`px-2 py-1 rounded font-arcade text-[8px] transition-all ${
                 snake.id === gameState.selectedSnakeId
                   ? 'bg-green-500 text-black'
                   : 'text-green-600 hover:text-green-400'
@@ -344,8 +344,8 @@ function GameContent() {
       />
 
       {/* Minimal footer */}
-      <p className="text-green-900 text-[10px] font-mono mt-2">
-        [ARROWS] MOVE • EAT FOOD • EAT SMALLER SNAKES
+      <p className="text-green-900 text-[8px] font-arcade mt-2">
+        ARROWS MOVE - EAT FOOD - EAT SMALLER SNAKES
       </p>
 
       {/* Global Leaderboard Modal */}
