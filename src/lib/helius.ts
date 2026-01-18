@@ -1,6 +1,34 @@
-import { Token, HeliusResponse } from '@/types';
+import { Token } from '@/types';
 
 const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`;
+
+// Native SOL mint address (wrapped SOL)
+const SOL_MINT = 'So11111111111111111111111111111111111111112';
+
+interface HeliusAsset {
+  id: string;
+  interface: string;
+  content?: {
+    metadata?: {
+      name?: string;
+      symbol?: string;
+    };
+    links?: {
+      image?: string;
+    };
+  };
+  token_info?: {
+    balance: number;
+    decimals: number;
+  };
+}
+
+interface HeliusResult {
+  items: HeliusAsset[];
+  nativeBalance?: {
+    lamports: number;
+  };
+}
 
 export async function getWalletTokens(walletAddress: string): Promise<Token[]> {
   const response = await fetch(HELIUS_RPC_URL, {
@@ -28,23 +56,42 @@ export async function getWalletTokens(walletAddress: string): Promise<Token[]> {
     throw new Error(`Helius API error: ${response.status}`);
   }
 
-  const data: HeliusResponse = await response.json();
+  const data = await response.json();
+  const result: HeliusResult = data.result;
 
-  if (!data.result?.items) {
+  if (!result) {
     return [];
   }
 
-  // Filter for fungible tokens with balance
-  const tokens: Token[] = data.result.items
-    .filter((asset) => asset.token_info && asset.token_info.balance > 0)
-    .map((asset) => ({
-      mint: asset.id,
-      symbol: asset.content?.metadata?.symbol || 'UNKNOWN',
-      name: asset.content?.metadata?.name || 'Unknown Token',
-      balance: asset.token_info!.balance / Math.pow(10, asset.token_info!.decimals || 0),
-      decimals: asset.token_info!.decimals || 0,
-      image: asset.content?.links?.image,
-    }));
+  const tokens: Token[] = [];
+
+  // Add native SOL balance
+  if (result.nativeBalance && result.nativeBalance.lamports > 0) {
+    tokens.push({
+      mint: SOL_MINT,
+      symbol: 'SOL',
+      name: 'Solana',
+      balance: result.nativeBalance.lamports / 1e9,
+      decimals: 9,
+      image: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+    });
+  }
+
+  // Add fungible tokens
+  if (result.items) {
+    const fungibleTokens = result.items
+      .filter((asset) => asset.token_info && asset.token_info.balance > 0)
+      .map((asset) => ({
+        mint: asset.id,
+        symbol: asset.content?.metadata?.symbol || 'UNKNOWN',
+        name: asset.content?.metadata?.name || 'Unknown Token',
+        balance: asset.token_info!.balance / Math.pow(10, asset.token_info!.decimals || 0),
+        decimals: asset.token_info!.decimals || 0,
+        image: asset.content?.links?.image,
+      }));
+
+    tokens.push(...fungibleTokens);
+  }
 
   return tokens;
 }
